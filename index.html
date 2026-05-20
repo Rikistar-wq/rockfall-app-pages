@@ -267,6 +267,43 @@
     </script>
     <script src="app.js"></script>
     <script>
+      const pdfCdnBase = "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build";
+
+      window.loadScript = function loadScript(src, quiet = false) {
+        return new Promise((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src = src;
+          script.onload = resolve;
+          script.onerror = () => {
+            if (!quiet) {
+              window.alert("PDFライブラリを読み込めませんでした。通信状況を確認して、もう一度試してください。");
+            }
+            reject(new Error(`Failed to load ${src}`));
+          };
+          document.head.append(script);
+        });
+      };
+
+      window.ensurePdfJs = async function ensurePdfJs() {
+        const localWorker = "pdf.worker.min.js";
+        const localScript = "pdf.min.js";
+        const cdnWorker = `${pdfCdnBase}/pdf.worker.min.js`;
+
+        if (window.pdfjsLib) {
+          window.pdfjsLib.GlobalWorkerOptions.workerSrc = window.pdfjsLib.GlobalWorkerOptions.workerSrc || localWorker;
+          return;
+        }
+
+        try {
+          await window.loadScript(localScript, true);
+          window.pdfjsLib.GlobalWorkerOptions.workerSrc = localWorker;
+        } catch {
+          await window.loadScript(`${pdfCdnBase}/pdf.min.js`);
+          window.pdfjsLib.GlobalWorkerOptions.workerSrc = cdnWorker;
+        }
+      };
+    </script>
+    <script>
       const swHost = location.hostname;
       const canUseServiceWorker =
         location.protocol === "https:" ||
