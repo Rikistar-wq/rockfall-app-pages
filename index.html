@@ -130,6 +130,7 @@
               <span class="map-crosshair-v"></span>
               <span class="map-crosshair-h"></span>
               <span class="map-crosshair-dot"></span>
+              <span class="map-crosshair-handle" id="map-crosshair-handle"></span>
             </div>
             <div class="map-zoom-bar">
               <button type="button" id="map-zoom-out">－</button>
@@ -308,20 +309,23 @@
 
         function bindCrosshairDrag() {
           const crosshair = elements?.mapCrosshair;
-          if (!crosshair || crosshair.dataset.patchBound === "1") return;
+          const handle = document.querySelector("#map-crosshair-handle");
+          if (!crosshair || !handle || crosshair.dataset.patchBound === "1") return;
           crosshair.dataset.patchBound = "1";
 
-          crosshair.addEventListener("pointerdown", (event) => {
+          handle.addEventListener("pointerdown", (event) => {
             if (mapToolMode !== "edit") return;
+            if (patchState.dragPointerId !== null) return;
+            if (event.pointerType === "touch" && event.isPrimary === false) return;
             event.preventDefault();
             event.stopPropagation();
             patchState.dragPointerId = event.pointerId;
-            crosshair.setPointerCapture?.(event.pointerId);
+            handle.setPointerCapture?.(event.pointerId);
             crosshair.classList.add("dragging");
             setCrosshairFromClientPoint(event.clientX, event.clientY);
           });
 
-          crosshair.addEventListener("pointermove", (event) => {
+          handle.addEventListener("pointermove", (event) => {
             if (patchState.dragPointerId !== event.pointerId) return;
             event.preventDefault();
             setCrosshairFromClientPoint(event.clientX, event.clientY);
@@ -330,13 +334,13 @@
           const endDrag = (event) => {
             if (patchState.dragPointerId !== event.pointerId) return;
             event.preventDefault();
-            crosshair.releasePointerCapture?.(event.pointerId);
+            handle.releasePointerCapture?.(event.pointerId);
             patchState.dragPointerId = null;
             crosshair.classList.remove("dragging");
           };
 
-          crosshair.addEventListener("pointerup", endDrag);
-          crosshair.addEventListener("pointercancel", endDrag);
+          handle.addEventListener("pointerup", endDrag);
+          handle.addEventListener("pointercancel", endDrag);
         }
 
         const originalRenderMapModeControls = window.renderMapModeControls;
@@ -368,7 +372,7 @@
         const originalMapHelperStatus = window.mapHelperStatus;
         window.mapHelperStatus = function patchedMapHelperStatus(...args) {
           if (activeSite?.map && mapToolMode === "edit") {
-            return "編集ON: 十字ドラッグで微調整 / 1本指で図面移動 / 2本指で拡大縮小";
+            return "編集ON: 右下の点で十字移動 / 1本指で図面移動 / 2本指で拡大縮小";
           }
           return typeof originalMapHelperStatus === "function"
             ? originalMapHelperStatus.apply(this, args)
