@@ -1,0 +1,19 @@
+{
+  "name": "落石記帳",
+  "short_name": "落石記帳",
+  "description": "現場で落石情報を片手入力するための記帳アプリ",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#eef4f1",
+  "theme_color": "#eef4f1",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
