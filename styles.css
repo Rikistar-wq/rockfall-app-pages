@@ -781,19 +781,41 @@ body.map-open {
   height: 42px;
   transform: translate(-50%, -50%);
   z-index: 2;
-  pointer-events: auto;
-  touch-action: none;
-  cursor: grab;
-}
-
-.map-crosshair.dragging {
-  cursor: grabbing;
+  pointer-events: none;
 }
 
 .map-crosshair-v,
 .map-crosshair-h,
 .map-crosshair-dot {
   pointer-events: none;
+}
+
+.map-crosshair-handle {
+  position: absolute;
+  right: -10px;
+  bottom: -10px;
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(13, 107, 85, 0.96);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 2px 8px rgba(23, 33, 29, 0.18);
+  pointer-events: auto;
+  touch-action: none;
+  cursor: grab;
+}
+
+.map-crosshair-handle::after {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border-radius: 999px;
+  background: rgba(13, 107, 85, 0.9);
+}
+
+.map-crosshair.dragging .map-crosshair-handle {
+  cursor: grabbing;
+  box-shadow: 0 3px 10px rgba(23, 33, 29, 0.26);
 }
 
 .map-crosshair-v,
@@ -1069,6 +1091,13 @@ body.keypad-hidden .bottom-keypad {
     top: 38%;
     width: 38px;
     height: 38px;
+  }
+
+  .map-crosshair-handle {
+    right: -9px;
+    bottom: -9px;
+    width: 18px;
+    height: 18px;
   }
 }
 
