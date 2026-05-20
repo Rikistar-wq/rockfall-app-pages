@@ -781,6 +781,18 @@ body.map-open {
   height: 42px;
   transform: translate(-50%, -50%);
   z-index: 2;
+  pointer-events: auto;
+  touch-action: none;
+  cursor: grab;
+}
+
+.map-crosshair.dragging {
+  cursor: grabbing;
+}
+
+.map-crosshair-v,
+.map-crosshair-h,
+.map-crosshair-dot {
   pointer-events: none;
 }
 
