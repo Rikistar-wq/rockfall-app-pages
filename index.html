@@ -267,6 +267,137 @@
     </script>
     <script src="app.js"></script>
     <script>
+      (() => {
+        if (window.__mapCrosshairPatchApplied) return;
+        window.__mapCrosshairPatchApplied = true;
+
+        const patchState = {
+          position: { x: 0.5, y: 0.42 },
+          dragPointerId: null
+        };
+
+        function updateCrosshairPosition() {
+          if (!elements?.mapCrosshair) return;
+          elements.mapCrosshair.style.left = `${patchState.position.x * 100}%`;
+          elements.mapCrosshair.style.top = `${patchState.position.y * 100}%`;
+        }
+
+        function setCrosshairFromClientPoint(clientX, clientY) {
+          const rect = elements?.mapStageWrap?.getBoundingClientRect?.();
+          if (!rect || !rect.width || !rect.height) return;
+          const padding = 0.05;
+          patchState.position = {
+            x: Math.max(padding, Math.min(1 - padding, (clientX - rect.left) / rect.width)),
+            y: Math.max(padding, Math.min(1 - padding, (clientY - rect.top) / rect.height))
+          };
+          updateCrosshairPosition();
+        }
+
+        function crosshairClientPoint() {
+          const rect = elements?.mapCrosshair?.getBoundingClientRect?.();
+          if (!rect || !rect.width || !rect.height) {
+            return typeof mapViewportClientPoint === "function"
+              ? mapViewportClientPoint()
+              : { clientX: 0, clientY: 0 };
+          }
+          return {
+            clientX: rect.left + rect.width / 2,
+            clientY: rect.top + rect.height / 2
+          };
+        }
+
+        function bindCrosshairDrag() {
+          const crosshair = elements?.mapCrosshair;
+          if (!crosshair || crosshair.dataset.patchBound === "1") return;
+          crosshair.dataset.patchBound = "1";
+
+          crosshair.addEventListener("pointerdown", (event) => {
+            if (mapToolMode !== "edit") return;
+            event.preventDefault();
+            event.stopPropagation();
+            patchState.dragPointerId = event.pointerId;
+            crosshair.setPointerCapture?.(event.pointerId);
+            crosshair.classList.add("dragging");
+            setCrosshairFromClientPoint(event.clientX, event.clientY);
+          });
+
+          crosshair.addEventListener("pointermove", (event) => {
+            if (patchState.dragPointerId !== event.pointerId) return;
+            event.preventDefault();
+            setCrosshairFromClientPoint(event.clientX, event.clientY);
+          });
+
+          const endDrag = (event) => {
+            if (patchState.dragPointerId !== event.pointerId) return;
+            event.preventDefault();
+            crosshair.releasePointerCapture?.(event.pointerId);
+            patchState.dragPointerId = null;
+            crosshair.classList.remove("dragging");
+          };
+
+          crosshair.addEventListener("pointerup", endDrag);
+          crosshair.addEventListener("pointercancel", endDrag);
+        }
+
+        const originalRenderMapModeControls = window.renderMapModeControls;
+        window.renderMapModeControls = function patchedRenderMapModeControls(...args) {
+          const result = typeof originalRenderMapModeControls === "function"
+            ? originalRenderMapModeControls.apply(this, args)
+            : undefined;
+          bindCrosshairDrag();
+          if (elements?.mapCrosshair) {
+            elements.mapCrosshair.hidden = mapToolMode !== "edit";
+          }
+          if (elements?.mapPlacePoint) {
+            elements.mapPlacePoint.textContent = currentMapTarget?.()?.mapPoint ? "十字へ移動" : "十字に配置";
+          }
+          updateCrosshairPosition();
+          return result;
+        };
+
+        const originalResetMapTouchState = window.resetMapTouchState;
+        window.resetMapTouchState = function patchedResetMapTouchState(...args) {
+          const result = typeof originalResetMapTouchState === "function"
+            ? originalResetMapTouchState.apply(this, args)
+            : undefined;
+          patchState.dragPointerId = null;
+          elements?.mapCrosshair?.classList.remove("dragging");
+          return result;
+        };
+
+        const originalMapHelperStatus = window.mapHelperStatus;
+        window.mapHelperStatus = function patchedMapHelperStatus(...args) {
+          if (activeSite?.map && mapToolMode === "edit") {
+            return "編集ON: 十字ドラッグで微調整 / 1本指で図面移動 / 2本指で拡大縮小";
+          }
+          return typeof originalMapHelperStatus === "function"
+            ? originalMapHelperStatus.apply(this, args)
+            : "";
+        };
+
+        window.mapCrosshairClientPoint = crosshairClientPoint;
+        window.updateMapCrosshairPosition = updateCrosshairPosition;
+        window.placeCurrentMapPointAtCrosshair = function patchedPlaceCurrentMapPointAtCrosshair() {
+          if (!activeSite?.map) {
+            window.alert("先に図面を選択してください。");
+            return;
+          }
+          const target = currentMapTarget?.();
+          if (!target) {
+            window.alert("配置する状況写真がありません。先に状況写真を撮影してください。");
+            return;
+          }
+          const point = normalizeMapPoint(mapCanvasPoint(crosshairClientPoint()));
+          target.mapPoint = point;
+          saveCurrentMapTarget();
+          renderMap();
+        };
+
+        bindCrosshairDrag();
+        updateCrosshairPosition();
+      })();
+    </script>
+    <script>
       const pdfCdnBase = "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build";
 
       window.loadScript = function loadScript(src, quiet = false) {
