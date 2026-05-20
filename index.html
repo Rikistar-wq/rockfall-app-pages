@@ -296,6 +296,7 @@
 
         try {
           await window.loadScript(localScript, true);
+          if (!window.pdfjsLib) throw new Error("local pdfjs missing");
           window.pdfjsLib.GlobalWorkerOptions.workerSrc = localWorker;
         } catch {
           await window.loadScript(`${pdfCdnBase}/pdf.min.js`);
