@@ -1,4 +1,4 @@
-const cacheName = "rockfall-log-v29";
+const cacheName = "rockfall-log-v30";
 const assets = [
   "./",
   "./index.html",
