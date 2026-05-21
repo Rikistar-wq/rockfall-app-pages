@@ -1,4 +1,4 @@
-const cacheName = "rockfall-log-v32";
+const cacheName = "rockfall-log-v33";
 const assets = [
   "./",
   "./index.html",
@@ -13,8 +13,8 @@ const mapLabelPatch = `
   function layoutMapLabels(points, width, height, options = {}) {
     const placed = [];
     const isExport = options.mode === "export";
-    const fontSize = isExport ? 18 : 10;
-    const gap = isExport ? 10 : 7;
+    const fontSize = isExport ? Math.max(28, Math.min(44, Math.round(Math.min(width, height) * 0.018))) : 12;
+    const gap = isExport ? fontSize * 0.8 : 8;
     const offsets = [
       { x: 0, y: 0 },
       { x: gap, y: -gap },
@@ -92,8 +92,8 @@ const mapLabelPatch = `
   };
 
   drawMapLabel = function patchedDrawMapLabel(context, point, options = {}) {
-    const fontSize = point.fontSize || (point.active ? 11 : 10);
-    const haloSize = point.haloSize || (point.active ? 15 : 13);
+    const fontSize = point.fontSize || (point.active ? 14 : 12);
+    const haloSize = point.haloSize || (point.active ? 18 : 16);
     const labelX = point.labelX ?? point.x;
     const labelY = point.labelY ?? point.y;
     const moved = Math.hypot(labelX - point.x, labelY - point.y) > 1;
@@ -110,7 +110,7 @@ const mapLabelPatch = `
 
     context.fillStyle = point.active ? point.color + "cc" : point.color + "aa";
     context.beginPath();
-    context.arc(point.x, point.y, options.mode === "export" ? 3.2 : 2.2, 0, Math.PI * 2);
+    context.arc(point.x, point.y, options.mode === "export" ? Math.max(4, fontSize * 0.18) : 2.4, 0, Math.PI * 2);
     context.fill();
 
     context.font = "900 " + fontSize + "px system-ui, sans-serif";
