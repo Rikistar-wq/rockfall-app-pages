@@ -12,6 +12,26 @@
     <link rel="icon" href="icon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="icon.svg">
     <link rel="stylesheet" href="styles.css">
+    <style>
+      .map-crosshair {
+        position: fixed !important;
+        z-index: 44 !important;
+      }
+
+      .map-zoom-bar {
+        position: fixed !important;
+        right: calc(10px + env(safe-area-inset-right)) !important;
+        bottom: calc(12px + env(safe-area-inset-bottom)) !important;
+        z-index: 43 !important;
+      }
+
+      @media (orientation: landscape) and (max-height: 430px) {
+        .map-zoom-bar {
+          right: calc(8px + env(safe-area-inset-right)) !important;
+          bottom: calc(8px + env(safe-area-inset-bottom)) !important;
+        }
+      }
+    </style>
   </head>
   <body>
     <main class="app" aria-label="落石記帳アプリ">
@@ -279,8 +299,10 @@
 
         function updateCrosshairPosition() {
           if (!elements?.mapCrosshair) return;
-          elements.mapCrosshair.style.left = `${patchState.position.x * 100}%`;
-          elements.mapCrosshair.style.top = `${patchState.position.y * 100}%`;
+          const rect = elements?.mapStageWrap?.getBoundingClientRect?.();
+          if (!rect || !rect.width || !rect.height) return;
+          elements.mapCrosshair.style.left = `${rect.left + rect.width * patchState.position.x}px`;
+          elements.mapCrosshair.style.top = `${rect.top + rect.height * patchState.position.y}px`;
         }
 
         function setCrosshairFromClientPoint(clientX, clientY) {
@@ -381,6 +403,8 @@
 
         window.mapCrosshairClientPoint = crosshairClientPoint;
         window.updateMapCrosshairPosition = updateCrosshairPosition;
+        window.addEventListener("resize", updateCrosshairPosition);
+        elements?.mapStageWrap?.addEventListener("scroll", updateCrosshairPosition, { passive: true });
         window.placeCurrentMapPointAtCrosshair = function patchedPlaceCurrentMapPointAtCrosshair() {
           if (!activeSite?.map) {
             window.alert("先に図面を選択してください。");
