@@ -1,4 +1,4 @@
-const cacheName = "rockfall-log-v33";
+const cacheName = "rockfall-log-v36";
 const assets = [
   "./",
   "./index.html",
@@ -8,156 +8,195 @@ const assets = [
   "./icon.svg"
 ];
 
-const mapLabelPatch = `
+const photoManagementPatch = `
 ;(() => {
-  function layoutMapLabels(points, width, height, options = {}) {
-    const placed = [];
-    const isExport = options.mode === "export";
-    const fontSize = isExport ? Math.max(28, Math.min(44, Math.round(Math.min(width, height) * 0.018))) : 12;
-    const gap = isExport ? fontSize * 0.8 : 8;
-    const offsets = [
-      { x: 0, y: 0 },
-      { x: gap, y: -gap },
-      { x: gap, y: gap },
-      { x: -gap, y: -gap },
-      { x: -gap, y: gap },
-      { x: gap * 1.8, y: 0 },
-      { x: -gap * 1.8, y: 0 },
-      { x: 0, y: -gap * 1.8 },
-      { x: 0, y: gap * 1.8 }
-    ];
+  if (window.__photoManagementPatchApplied) return;
+  window.__photoManagementPatchApplied = true;
 
-    return points.map((point) => {
-      const pointFontSize = fontSize + (point.active ? 2 : 0);
-      const boxWidth = Math.max(pointFontSize + 8, point.label.length * pointFontSize * 0.7 + 8);
-      const boxHeight = pointFontSize + 8;
-      let best = null;
-
-      offsets.forEach((offset, offsetIndex) => {
-        const x = Math.max(boxWidth / 2, Math.min(width - boxWidth / 2, point.x + offset.x));
-        const y = Math.max(boxHeight / 2, Math.min(height - boxHeight / 2, point.y + offset.y));
-        const box = {
-          left: x - boxWidth / 2,
-          right: x + boxWidth / 2,
-          top: y - boxHeight / 2,
-          bottom: y + boxHeight / 2
-        };
-        const overlap = placed.reduce((sum, other) => sum + overlapArea(box, other.box), 0);
-        const distance = Math.hypot(x - point.x, y - point.y);
-        const score = overlap * 100 + distance + offsetIndex * 0.1;
-        if (!best || score < best.score) best = { x, y, box, score };
-      });
-
-      const result = {
-        ...point,
-        labelX: best.x,
-        labelY: best.y,
-        fontSize: pointFontSize,
-        haloSize: isExport ? pointFontSize + 11 : pointFontSize + 4
-      };
-      placed.push({ box: best.box });
-      return result;
-    });
-  }
-
-  function overlapArea(a, b) {
-    const width = Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left));
-    const height = Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
-    return width * height;
-  }
-
-  drawMapPoints = function patchedDrawMapPoints(context, width, height, options = {}) {
-    const labels = [];
-    records.forEach((record, index) => {
-      if (!record.mapPoint) return;
-      labels.push({
-        x: record.mapPoint.x * width,
-        y: record.mapPoint.y * height,
-        label: String(record.no),
-        active: mapPlotMode === "rock" && index === activeRecordIndex,
-        color: "#0d6b55"
-      });
-    });
-    situationPhotos.forEach((photo, index) => {
-      if (!photo.mapPoint) return;
-      labels.push({
-        x: photo.mapPoint.x * width,
-        y: photo.mapPoint.y * height,
-        label: "状" + (index + 1),
-        active: mapPlotMode === "situation" && index === activeSituationIndex,
-        color: "#315f9c"
-      });
-    });
-    layoutMapLabels(labels, width, height, options).forEach((point) => drawMapLabel(context, point, options));
+  const requiredRockPhotoKindsPatch = ["full", "shape", "depth"];
+  const photoStandardProfilePatch = {
+    name: "JPEG 1600px",
+    maxLongSide: 1600,
+    jpegQuality: 0.82,
+    targetNote: "JPEG / 長辺1600px / 100〜300万画素目安"
   };
 
-  drawMapLabel = function patchedDrawMapLabel(context, point, options = {}) {
-    const fontSize = point.fontSize || (point.active ? 14 : 12);
-    const haloSize = point.haloSize || (point.active ? 18 : 16);
-    const labelX = point.labelX ?? point.x;
-    const labelY = point.labelY ?? point.y;
-    const moved = Math.hypot(labelX - point.x, labelY - point.y) > 1;
-    context.save();
-
-    if (moved) {
-      context.strokeStyle = "rgba(23, 33, 29, 0.34)";
-      context.lineWidth = options.mode === "export" ? 1.6 : 1.1;
-      context.beginPath();
-      context.moveTo(point.x, point.y);
-      context.lineTo(labelX, labelY);
-      context.stroke();
+  function ensurePhotoUiPatch() {
+    if (!elements?.photoPanel) return;
+    let grid = document.querySelector("#photo-status-grid");
+    if (!grid) {
+      grid = document.createElement("div");
+      grid.id = "photo-status-grid";
+      grid.className = "photo-status-grid";
+      const head = elements.photoPanel.querySelector(".photo-head");
+      head?.insertAdjacentElement("afterend", grid);
     }
+    let note = document.querySelector("#photo-folder-note");
+    if (!note) {
+      note = document.createElement("p");
+      note.id = "photo-folder-note";
+      note.className = "photo-folder-note";
+      grid.insertAdjacentElement("afterend", note);
+    }
+    elements.photoStatusGrid = grid;
+    elements.photoFolderNote = note;
+    if (grid.dataset.bound !== "1") {
+      grid.dataset.bound = "1";
+      grid.addEventListener("click", (event) => {
+        const button = event.target.closest("[data-photo-status-kind]");
+        if (!button) return;
+        startRockPhoto(button.dataset.photoStatusKind);
+      });
+    }
+  }
 
-    context.fillStyle = point.active ? point.color + "cc" : point.color + "aa";
-    context.beginPath();
-    context.arc(point.x, point.y, options.mode === "export" ? Math.max(4, fontSize * 0.18) : 2.4, 0, Math.PI * 2);
-    context.fill();
+  function injectPhotoStylePatch() {
+    if (document.querySelector("#photo-management-style")) return;
+    const style = document.createElement("style");
+    style.id = "photo-management-style";
+    style.textContent = \
+      ".photo-status-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:8px 0;}" +
+      ".photo-status{display:grid;gap:2px;min-height:48px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:#f7faf8;text-align:center;}" +
+      ".photo-status span{color:var(--muted);font-size:12px;font-weight:900;}" +
+      ".photo-status strong{color:var(--warn);font-size:14px;font-weight:900;}" +
+      ".photo-status.done{border-color:#a9d2c4;background:#e8f6f1;}" +
+      ".photo-status.done strong{color:var(--accent-strong);}" +
+      ".photo-folder-note{margin:2px 0 8px;color:var(--muted);font-size:11px;font-weight:800;overflow-wrap:anywhere;}" +
+      ".photo-item .photo-path{color:var(--accent-strong);font-size:11px;}";
+    document.head.append(style);
+  }
 
-    context.font = "900 " + fontSize + "px system-ui, sans-serif";
-    context.textAlign = "center";
-    context.textBaseline = "middle";
-    context.fillStyle = point.active ? "rgba(255, 255, 255, 0.62)" : "rgba(255, 255, 255, 0.38)";
-    context.beginPath();
-    context.arc(labelX, labelY, haloSize / 2, 0, Math.PI * 2);
-    context.fill();
-    context.lineWidth = options.mode === "export" ? 3.2 : point.active ? 2.3 : 1.8;
-    context.strokeStyle = point.active ? "rgba(255, 255, 255, 0.88)" : "rgba(255, 255, 255, 0.7)";
-    context.strokeText(point.label, labelX, labelY + 0.5);
-    context.fillStyle = point.active ? point.color : point.color + "cc";
-    context.fillText(point.label, labelX, labelY + 0.5);
-    context.restore();
-  };
+  function photoZipRootNamePatch() {
+    return fileSafeName(activeSite?.name || "未設定現場");
+  }
 
-  const originalExportMapImage = exportMapImage;
-  exportMapImage = async function patchedExportMapImage() {
-    if (!activeSite?.map) {
-      window.alert("出力する図面がありません。");
+  function photoOutputNamePatch(photo) {
+    if (photo.kind === "situation") return photo.name;
+    return photoKindLabel(photo.kind) + "_" + photo.name;
+  }
+
+  function photoOutputPathPatch(photo, group, index, record = currentRecord()) {
+    const root = photoZipRootNamePatch();
+    if (group === "situation") {
+      return root + "/状況写真/" + sanitizeName(photo.folder || ("状況写真" + (index + 1))) + "/" + photoOutputNamePatch(photo);
+    }
+    return root + "/落石/No." + record.no + "/" + photoOutputNamePatch(photo);
+  }
+
+  function createStandardPhotoPatch(image) {
+    const maxSide = Math.max(image.naturalWidth, image.naturalHeight);
+    const scale = Math.min(1, photoStandardProfilePatch.maxLongSide / maxSide);
+    const width = Math.round(image.naturalWidth * scale);
+    const height = Math.round(image.naturalHeight * scale);
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(image, 0, 0, width, height);
+    return {
+      dataUrl: canvas.toDataURL("image/jpeg", photoStandardProfilePatch.jpegQuality),
+      width,
+      height
+    };
+  }
+
+  renderPhoto = function patchedRenderPhoto() {
+    ensurePhotoUiPatch();
+    const recordPhotos = currentRecord().photos || [];
+    const rockTotal = records.reduce((sum, record) => sum + (record.photos?.length || 0), 0);
+    const total = rockTotal + situationPhotos.length;
+    const missing = requiredRockPhotoKindsPatch.filter((kind) => !recordPhotos.some((photo) => photo.kind === kind));
+    elements.photoMeta.textContent = "このNo: " + recordPhotos.length + "枚 / 未撮影: " + (missing.length ? missing.map(photoKindLabel).join("・") : "なし") + " / 状況: " + situationPhotos.length + "枚 / 全体: " + total + "枚";
+    elements.photoStatusGrid.innerHTML = requiredRockPhotoKindsPatch.map((kind) => {
+      const photos = recordPhotos.filter((photo) => photo.kind === kind);
+      const done = photos.length > 0;
+      return '<button class="photo-status ' + (done ? 'done' : 'missing') + '" type="button" data-photo-status-kind="' + kind + '"><span>' + photoKindLabel(kind) + '</span><strong>' + (done ? '撮影済 ' + photos.length : '未撮影') + '</strong></button>';
+    }).join("");
+    elements.photoFolderNote.textContent = "写真ZIP: " + photoZipRootNamePatch() + "/落石/No." + currentRecord().no + "/... / 保存: " + photoStandardProfilePatch.targetNote;
+    elements.toggleRockList.textContent = photoListMode === "rock" ? "落石閉じる" : "落石一覧";
+    elements.toggleSituationList.textContent = photoListMode === "situation" ? "状況閉じる" : "状況一覧";
+    elements.photoList.hidden = !photoListMode;
+    if (photoListMode === "rock") {
+      elements.photoList.innerHTML = recordPhotos.map((photo, index) => photoListItem(photo, index, "rock")).join("") || '<p class="empty-photo">このNoの写真は未撮影</p>';
       return;
     }
-    const image = await mapImage();
-    const canvas = document.createElement("canvas");
-    canvas.width = image.naturalWidth;
-    canvas.height = image.naturalHeight;
-    const context = canvas.getContext("2d");
-    context.drawImage(image, 0, 0);
-    drawMapHelpers(context, canvas.width, canvas.height);
-    drawMapPoints(context, canvas.width, canvas.height, { mode: "export" });
-    canvas.toBlob((blob) => {
-      if (!blob) return;
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = fileSafeName(activeSite?.name || "未設定現場") + "_落石位置図.png";
-      link.click();
-      URL.revokeObjectURL(url);
-    }, "image/png");
+    if (photoListMode === "situation") {
+      elements.photoList.innerHTML = situationPhotos.map((photo, index) => photoListItem(photo, index, "situation")).join("") || '<p class="empty-photo">状況写真は未撮影</p>';
+      return;
+    }
+    elements.photoList.innerHTML = "";
   };
 
-  if (elements?.exportMap) {
-    elements.exportMap.removeEventListener("click", originalExportMapImage);
-    elements.exportMap.addEventListener("click", exportMapImage);
+  photoListItem = function patchedPhotoListItem(photo, index, group) {
+    const size = photo.compressedSize ? " / " + formatBytes(photo.compressedSize) : "";
+    const dimensions = photo.width && photo.height ? " / " + photo.width + "x" + photo.height : "";
+    const label = group === "rock" ? photoKindLabel(photo.kind) : "状況: " + photo.folder;
+    const outputPath = photoOutputPathPatch(photo, group, index);
+    return '<article class="photo-item"><img src="' + photo.dataUrl + '" alt="' + escapeHtml(label) + '"><div><strong>' + escapeHtml(label) + '</strong><span>' + escapeHtml(photo.name + size + dimensions) + '</span><span class="photo-path">ZIP: ' + escapeHtml(outputPath) + '</span><button class="photo-delete" type="button" data-photo-delete="' + group + ':' + index + '">削除...</button></div></article>';
+  };
+
+  handlePhoto = async function patchedHandlePhoto(file) {
+    if (!file) return;
+    const sourceUrl = await readFileAsDataUrl(file);
+    const image = await loadImage(sourceUrl);
+    const standardPhoto = createStandardPhotoPatch(image);
+    const takenAt = new Date().toISOString();
+    const photo = {
+      kind: pendingPhoto?.kind || "full",
+      name: photoFileName(pendingPhoto, takenAt),
+      dataUrl: standardPhoto.dataUrl,
+      takenAt,
+      originalSize: file.size,
+      compressedSize: estimateDataUrlBytes(standardPhoto.dataUrl),
+      width: standardPhoto.width,
+      height: standardPhoto.height,
+      format: "image/jpeg",
+      standardProfile: photoStandardProfilePatch.name
+    };
+    if (pendingPhoto?.kind === "situation") {
+      situationPhotos.push({ ...photo, folder: pendingPhoto.folder });
+      saveSituationPhotos();
+    } else {
+      currentRecord().photos.push(photo);
+      saveRecords();
+    }
+    pendingPhoto = null;
+    render();
+  };
+
+  exportPhotoZip = function patchedExportPhotoZip() {
+    const entries = [];
+    for (const record of records) {
+      for (const photo of record.photos || []) {
+        entries.push({ path: photoOutputPathPatch(photo, "rock", 0, record), bytes: dataUrlToBytes(photo.dataUrl) });
+      }
+    }
+    situationPhotos.forEach((photo, index) => {
+      entries.push({ path: photoOutputPathPatch(photo, "situation", index), bytes: dataUrlToBytes(photo.dataUrl) });
+    });
+    if (!entries.length) {
+      window.alert("出力する写真がありません。");
+      return;
+    }
+    const blob = makeZip(entries);
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileSafeName(activeSite?.name || "未設定現場") + "_落石写真.zip";
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  if (elements?.exportPhotos) {
+    elements.exportPhotos.addEventListener("click", (event) => {
+      event.stopImmediatePropagation();
+      exportPhotoZip();
+    }, true);
   }
-  if (!elements?.mapModal?.hidden) renderMap();
+
+  injectPhotoStylePatch();
+  ensurePhotoUiPatch();
+  renderPhoto();
 })();
 `;
 
@@ -168,9 +207,9 @@ self.addEventListener("install", (event) => {
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((key) => key !== cacheName).map((key) => caches.delete(key)))
-    ).then(() => self.clients.claim())
+    caches.keys()
+      .then((keys) => Promise.all(keys.filter((key) => key !== cacheName).map((key) => caches.delete(key))))
+      .then(() => self.clients.claim())
   );
 });
 
@@ -182,7 +221,7 @@ self.addEventListener("fetch", (event) => {
       fetch(event.request)
         .catch(() => caches.match(event.request))
         .then((response) => response.text())
-        .then((source) => new Response(source + "\n" + mapLabelPatch, {
+        .then((source) => new Response(source + "\n" + photoManagementPatch, {
           headers: { "Content-Type": "application/javascript; charset=utf-8" }
         }))
     );
