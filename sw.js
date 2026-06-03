@@ -1,4 +1,4 @@
-const cacheName = "rockfall-log-v36";
+const cacheName = "rockfall-log-v37";
 const assets = [
   "./",
   "./index.html",
@@ -8,7 +8,7 @@ const assets = [
   "./icon.svg"
 ];
 
-const photoManagementPatch = `
+const appPatch = `
 ;(() => {
   if (window.__photoManagementPatchApplied) return;
   window.__photoManagementPatchApplied = true;
@@ -50,11 +50,11 @@ const photoManagementPatch = `
     }
   }
 
-  function injectPhotoStylePatch() {
-    if (document.querySelector("#photo-management-style")) return;
+  function injectStylePatch() {
+    if (document.querySelector("#management-patch-style")) return;
     const style = document.createElement("style");
-    style.id = "photo-management-style";
-    style.textContent = \
+    style.id = "management-patch-style";
+    style.textContent =
       ".photo-status-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:8px 0;}" +
       ".photo-status{display:grid;gap:2px;min-height:48px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:#f7faf8;text-align:center;}" +
       ".photo-status span{color:var(--muted);font-size:12px;font-weight:900;}" +
@@ -62,7 +62,11 @@ const photoManagementPatch = `
       ".photo-status.done{border-color:#a9d2c4;background:#e8f6f1;}" +
       ".photo-status.done strong{color:var(--accent-strong);}" +
       ".photo-folder-note{margin:2px 0 8px;color:var(--muted);font-size:11px;font-weight:800;overflow-wrap:anywhere;}" +
-      ".photo-item .photo-path{color:var(--accent-strong);font-size:11px;}";
+      ".photo-item .photo-path{color:var(--accent-strong);font-size:11px;}" +
+      ".site-danger-zone{display:grid;gap:8px;margin:14px 0 10px;padding-top:12px;border-top:1px solid #efc9b8;}" +
+      ".site-danger-zone[hidden]{display:none;}" +
+      ".site-danger-zone p{margin:0;color:var(--warn);font-size:12px;font-weight:900;}" +
+      ".danger-button{color:#8c2f12;border-color:#efc9b8;background:#fff1ea;}";
     document.head.append(style);
   }
 
@@ -194,8 +198,104 @@ const photoManagementPatch = `
     }, true);
   }
 
-  injectPhotoStylePatch();
+  function ensureSiteDangerUiPatch() {
+    if (!elements?.siteModal) return;
+    let zone = document.querySelector("#site-danger-zone");
+    if (!zone) {
+      zone = document.createElement("div");
+      zone.id = "site-danger-zone";
+      zone.className = "site-danger-zone";
+      zone.innerHTML = '<p>現在の現場</p><button class="small-button neutral-button full-button" id="clear-current-site" type="button">現場情報をクリア</button><button class="small-button danger-button full-button" id="delete-current-site" type="button">現場を削除</button>';
+      elements.siteList?.insertAdjacentElement("afterend", zone);
+    }
+    elements.siteDangerZone = zone;
+    elements.clearCurrentSite = document.querySelector("#clear-current-site");
+    elements.deleteCurrentSite = document.querySelector("#delete-current-site");
+    if (zone.dataset.bound !== "1") {
+      zone.dataset.bound = "1";
+      elements.clearCurrentSite?.addEventListener("click", clearCurrentSiteDataPatch);
+      elements.deleteCurrentSite?.addEventListener("click", deleteCurrentSitePatch);
+    }
+  }
+
+  function confirmDangerousSiteActionPatch(actionLabel) {
+    if (!activeSite) return false;
+    const message = [
+      activeSite.name + " の" + actionLabel + "を実行します。",
+      "この操作は元に戻せません。",
+      "実行前に必要ならバックアップを出してください。",
+      "",
+      "続けるには現場名を正確に入力してください。"
+    ].join("\\n");
+    const typed = window.prompt(message, "");
+    if (typed === null) return false;
+    if (typed.trim() !== activeSite.name) {
+      window.alert("現場名が一致しないため中止しました。");
+      return false;
+    }
+    return window.confirm("本当に " + activeSite.name + " の" + actionLabel + "を実行しますか？");
+  }
+
+  function clearCurrentSiteDataPatch() {
+    if (!activeSite || !confirmDangerousSiteActionPatch("情報クリア")) return;
+    activeSite.records = [createRecord(1)];
+    activeSite.situationPhotos = [];
+    activeSite.map = null;
+    records = activeSite.records;
+    situationPhotos = activeSite.situationPhotos;
+    activeRecordIndex = 0;
+    activeFieldIndex = 0;
+    pendingPhoto = null;
+    photoListMode = "";
+    mapPlotMode = "rock";
+    mapToolMode = "view";
+    activeSituationIndex = 0;
+    saveSiteData(activeSite);
+    window.alert("現場情報をクリアしました。");
+    closeSiteModal();
+    render();
+  }
+
+  function deleteCurrentSitePatch() {
+    if (!activeSite || !confirmDangerousSiteActionPatch("削除")) return;
+    const deletedSiteId = activeSite.id;
+    sites = sites.filter((site) => site.id !== deletedSiteId);
+    localStorage.removeItem(siteDataKey(deletedSiteId));
+    saveSitesIndex();
+    const nextSite = sites[0] || null;
+    if (nextSite) {
+      bindActiveSite(nextSite.id);
+    } else {
+      activeSiteId = "";
+      activeSite = null;
+      records = [];
+      situationPhotos = [];
+      localStorage.removeItem(activeSiteKey);
+    }
+    window.alert("現場を削除しました。");
+    if (!activeSite) {
+      elements.siteModal.hidden = false;
+      openSiteModal(true);
+    } else {
+      closeSiteModal();
+    }
+    render();
+  }
+
+  const originalRenderSitePatch = renderSite;
+  renderSite = function patchedRenderSite(...args) {
+    const result = originalRenderSitePatch.apply(this, args);
+    ensureSiteDangerUiPatch();
+    if (elements.siteDangerZone) elements.siteDangerZone.hidden = !activeSite;
+    if (elements.clearCurrentSite) elements.clearCurrentSite.disabled = !activeSite;
+    if (elements.deleteCurrentSite) elements.deleteCurrentSite.disabled = !activeSite;
+    return result;
+  };
+
+  injectStylePatch();
   ensurePhotoUiPatch();
+  ensureSiteDangerUiPatch();
+  renderSite();
   renderPhoto();
 })();
 `;
@@ -221,7 +321,7 @@ self.addEventListener("fetch", (event) => {
       fetch(event.request)
         .catch(() => caches.match(event.request))
         .then((response) => response.text())
-        .then((source) => new Response(source + "\n" + photoManagementPatch, {
+        .then((source) => new Response(source + "\n" + appPatch, {
           headers: { "Content-Type": "application/javascript; charset=utf-8" }
         }))
     );
