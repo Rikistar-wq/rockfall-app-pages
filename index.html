@@ -13,33 +13,13 @@
     <link rel="apple-touch-icon" href="icon.svg">
     <link rel="stylesheet" href="styles.css">
     <style>
-      .map-crosshair {
-        position: fixed !important;
-        z-index: 44 !important;
-      }
-
-      .map-zoom-bar {
-        position: fixed !important;
-        right: calc(10px + env(safe-area-inset-right)) !important;
-        bottom: calc(12px + env(safe-area-inset-bottom)) !important;
-        z-index: 43 !important;
-      }
-
-      @media (orientation: landscape) and (max-height: 430px) {
-        .map-zoom-bar {
-          right: calc(8px + env(safe-area-inset-right)) !important;
-          bottom: calc(8px + env(safe-area-inset-bottom)) !important;
-        }
-      }
+      .map-crosshair{position:fixed!important;z-index:44!important}.map-zoom-bar{position:fixed!important;right:calc(10px + env(safe-area-inset-right))!important;bottom:calc(12px + env(safe-area-inset-bottom))!important;z-index:43!important}
     </style>
   </head>
   <body>
     <main class="app" aria-label="落石記帳アプリ">
       <header class="topbar">
-        <div>
-          <p class="eyebrow">現場入力</p>
-          <h1>落石記帳</h1>
-        </div>
+        <div><p class="eyebrow">現場入力</p><h1>落石記帳</h1></div>
         <div class="top-actions">
           <button class="ghost-button" id="site-button" type="button">現場</button>
           <button class="ghost-button" id="map-button" type="button">図面</button>
@@ -49,40 +29,39 @@
       </header>
 
       <section class="site-panel">
-        <div>
-          <p class="summary-title">現場</p>
-          <p class="site-name" id="site-name">未設定</p>
-        </div>
+        <div><p class="summary-title">現場</p><p class="site-name" id="site-name">未設定</p></div>
         <div class="site-actions">
           <button class="small-button neutral-button" id="backup-site" type="button">バックアップ</button>
           <button class="small-button neutral-button" id="restore-site" type="button">復元</button>
           <button class="small-button neutral-button" id="export-photos" type="button">写真ZIP</button>
+          <a class="small-button neutral-button" href="recovery.html">救出</a>
         </div>
       </section>
 
-      <section class="record-strip" aria-label="記録一覧">
-        <button class="record-pill active" type="button" data-record-index="0">No.1</button>
+      <section class="safety-backup-panel" id="safety-backup-panel" hidden>
+        <div><p class="summary-title">安全バックアップ</p><p id="safety-backup-text">10件ごとのバックアップ推奨</p></div>
+        <div class="safety-backup-actions">
+          <button class="small-button neutral-button" id="safety-backup-json" type="button">JSON</button>
+          <button class="small-button neutral-button" id="safety-backup-photos" type="button">写真ZIP</button>
+          <button class="small-button neutral-button" id="safety-backup-later" type="button">あとで</button>
+        </div>
       </section>
 
-      <section class="active-record" id="active-record-label" aria-live="polite">
-        現在入力中: No.1
-      </section>
+      <section class="record-strip" aria-label="記録一覧"><button class="record-pill active" type="button" data-record-index="0">No.1</button></section>
+      <section class="active-record" id="active-record-label" aria-live="polite">現在入力中: No.1</section>
 
       <section class="photo-panel" id="photo-panel">
         <div class="photo-head">
-          <div>
-            <p class="summary-title">写真</p>
-            <p class="photo-meta" id="photo-meta">Noごとに全景・形状・奥行きを撮影</p>
-          </div>
+          <div><p class="summary-title">写真</p><p class="photo-meta" id="photo-meta">Noごとに全景・形状・奥行きを撮影</p></div>
           <div class="photo-actions">
             <button class="small-button neutral-button" id="toggle-rock-list" type="button">落石一覧</button>
             <button class="small-button neutral-button" id="toggle-situation-list" type="button">状況一覧</button>
           </div>
         </div>
+        <div class="photo-status-grid" id="photo-status-grid"></div>
+        <p class="photo-folder-note" id="photo-folder-note"></p>
         <div class="photo-menu" id="photo-menu" hidden>
-          <div class="photo-menu-head">
-            <p>撮影する写真を選択</p>
-          </div>
+          <div class="photo-menu-head"><p>撮影する写真を選択</p></div>
           <div class="photo-capture-grid">
             <button type="button" data-photo-kind="full">落石: 全景</button>
             <button type="button" data-photo-kind="shape">落石: 縦横</button>
@@ -94,31 +73,13 @@
       </section>
 
       <section class="focus-panel" aria-live="polite">
-        <div class="focus-head">
-          <div>
-            <p class="step-count" id="step-count">1 / 14</p>
-            <h2 id="field-label">高さ</h2>
-          </div>
-          <button class="small-button" id="clear-field" type="button">削除</button>
-        </div>
-
-        <button class="value-display" id="value-display" type="button" aria-label="現在の入力値">
-          <span id="value-text">未入力</span>
-          <span id="value-unit">m</span>
-        </button>
-
+        <div class="focus-head"><div><p class="step-count" id="step-count">1 / 14</p><h2 id="field-label">高さ</h2></div><button class="small-button" id="clear-field" type="button">削除</button></div>
+        <button class="value-display" id="value-display" type="button" aria-label="現在の入力値"><span id="value-text">未入力</span><span id="value-unit">m</span></button>
         <div class="quick-row" id="quick-row"></div>
       </section>
 
       <section class="field-list" id="field-list" aria-label="入力項目"></section>
-
-      <section class="summary-panel">
-        <div>
-          <p class="summary-title">入力済み</p>
-          <p class="summary-count" id="summary-count">0 / 14</p>
-        </div>
-        <button class="primary-button" id="export-csv" type="button">入力CSV</button>
-      </section>
+      <section class="summary-panel"><div><p class="summary-title">入力済み</p><p class="summary-count" id="summary-count">0 / 14</p></div><button class="primary-button" id="export-csv" type="button">入力CSV</button></section>
     </main>
 
     <input id="camera-input" type="file" accept="image/*" capture="environment" hidden>
@@ -127,76 +88,20 @@
 
     <div class="map-modal" id="map-modal" hidden>
       <section class="map-card" role="dialog" aria-modal="true" aria-labelledby="map-title">
-        <div class="map-toolbar">
-          <div>
-            <p class="eyebrow">位置図</p>
-            <h2 id="map-title">等高線図</h2>
-          </div>
-          <div class="map-toolbar-actions">
-            <button class="map-close" id="map-controls-toggle" type="button">操作</button>
-            <button class="map-close" id="close-map" type="button">閉じる</button>
-          </div>
-        </div>
-
-        <div class="map-portrait-guide">
-          <strong>横向きにしてください</strong>
-          <span>図面は横向きの画面で広く操作できます。</span>
-        </div>
-
+        <div class="map-toolbar"><div><p class="eyebrow">位置図</p><h2 id="map-title">等高線図</h2></div><div class="map-toolbar-actions"><button class="map-close" id="map-controls-toggle" type="button">操作</button><button class="map-close" id="close-map" type="button">閉じる</button></div></div>
+        <div class="map-portrait-guide"><strong>横向きにしてください</strong><span>図面は横向きの画面で広く操作できます。</span></div>
         <div class="map-workspace">
-          <div class="map-stage-wrap">
-            <canvas id="map-canvas"></canvas>
-            <div class="map-crosshair" id="map-crosshair" aria-hidden="true" hidden>
-              <span class="map-crosshair-v"></span>
-              <span class="map-crosshair-h"></span>
-              <span class="map-crosshair-dot"></span>
-              <span class="map-crosshair-handle" id="map-crosshair-handle"></span>
-            </div>
-            <div class="map-zoom-bar">
-              <button type="button" id="map-zoom-out">－</button>
-              <button type="button" id="map-zoom-fit">全体</button>
-              <button type="button" id="map-zoom-in">＋</button>
-            </div>
-          </div>
+          <div class="map-stage-wrap"><canvas id="map-canvas"></canvas><div class="map-crosshair" id="map-crosshair" aria-hidden="true" hidden><span class="map-crosshair-v"></span><span class="map-crosshair-h"></span><span class="map-crosshair-dot"></span><span class="map-crosshair-handle" id="map-crosshair-handle"></span></div><div class="map-zoom-bar"><button type="button" id="map-zoom-out">－</button><button type="button" id="map-zoom-fit">全体</button><button type="button" id="map-zoom-in">＋</button></div></div>
           <div class="map-panel collapsed" id="map-panel">
             <div class="map-controls">
-            <div class="map-control-group">
-              <span>対象</span>
-              <button class="small-button neutral-button selected" id="map-rock-mode" type="button">落石</button>
-              <button class="small-button neutral-button" id="map-situation-mode" type="button">状況</button>
+              <div class="map-control-group"><span>対象</span><button class="small-button neutral-button selected" id="map-rock-mode" type="button">落石</button><button class="small-button neutral-button" id="map-situation-mode" type="button">状況</button></div>
+              <div class="map-control-group"><span>編集</span><button class="small-button neutral-button" id="map-edit-toggle" type="button">編集OFF</button><button class="small-button neutral-button" id="map-place-point" type="button">十字に配置</button><button class="small-button neutral-button" id="clear-map-point" type="button">現在点を削除</button></div>
+              <div class="map-control-group"><span>尺度</span><button class="small-button neutral-button" id="map-scale-tool" type="button">10m基準</button><button class="small-button neutral-button" id="map-measure-tool" type="button">距離確認</button></div>
+              <div class="map-control-group"><span>図面</span><button class="small-button neutral-button" id="select-map" type="button">図面選択</button><button class="primary-button" id="export-map" type="button">画像出力</button></div>
             </div>
-            <div class="map-control-group">
-              <span>編集</span>
-              <button class="small-button neutral-button" id="map-edit-toggle" type="button">編集OFF</button>
-              <button class="small-button neutral-button" id="map-place-point" type="button">十字に配置</button>
-              <button class="small-button neutral-button" id="clear-map-point" type="button">現在点を削除</button>
-            </div>
-            <div class="map-control-group">
-              <span>尺度</span>
-              <button class="small-button neutral-button" id="map-scale-tool" type="button">10m基準</button>
-              <button class="small-button neutral-button" id="map-measure-tool" type="button">距離確認</button>
-            </div>
-            <div class="map-control-group">
-              <span>図面</span>
-              <button class="small-button neutral-button" id="select-map" type="button">図面選択</button>
-              <button class="primary-button" id="export-map" type="button">画像出力</button>
-            </div>
-            </div>
-            <div class="map-rock-row" id="map-rock-row">
-              <label for="map-record-select">落石番号</label>
-              <select id="map-record-select"></select>
-              <button class="small-button neutral-button" id="map-prev-record" type="button">前</button>
-              <button class="small-button neutral-button" id="map-next-record" type="button">次</button>
-              <button class="small-button neutral-button" id="map-add-record" type="button">新規</button>
-            </div>
-            <div class="map-situation-row" id="map-situation-row" hidden>
-              <label for="map-situation-select">状況写真</label>
-              <select id="map-situation-select"></select>
-            </div>
-            <div class="map-page-row" id="map-page-row" hidden>
-              <label for="map-page-select">PDFページ</label>
-              <select id="map-page-select"></select>
-            </div>
+            <div class="map-rock-row" id="map-rock-row"><label for="map-record-select">落石番号</label><select id="map-record-select"></select><button class="small-button neutral-button" id="map-prev-record" type="button">前</button><button class="small-button neutral-button" id="map-next-record" type="button">次</button><button class="small-button neutral-button" id="map-add-record" type="button">新規</button></div>
+            <div class="map-situation-row" id="map-situation-row" hidden><label for="map-situation-select">状況写真</label><select id="map-situation-select"></select></div>
+            <div class="map-page-row" id="map-page-row" hidden><label for="map-page-select">PDFページ</label><select id="map-page-select"></select></div>
             <p class="map-status" id="map-status">図面を選択してください。</p>
           </div>
         </div>
@@ -205,277 +110,33 @@
 
     <div class="site-modal" id="site-modal" hidden>
       <section class="site-card" role="dialog" aria-modal="true" aria-labelledby="site-modal-title">
-        <p class="eyebrow">現場設定</p>
-        <h2 id="site-modal-title">現場を選択</h2>
+        <p class="eyebrow">現場設定</p><h2 id="site-modal-title">現場を選択</h2>
         <label class="site-label" for="site-input">現場名</label>
         <input id="site-input" class="site-input" type="text" autocomplete="off" placeholder="例: 吉田奥出雲線">
         <button class="primary-button full-button" id="create-site" type="button">この現場で開始</button>
         <div class="site-list" id="site-list" aria-label="現場一覧"></div>
+        <div class="site-danger-zone" id="site-danger-zone"><p>現在の現場</p><button class="small-button neutral-button full-button" id="clear-current-site" type="button">現場情報をクリア</button><button class="small-button danger-button full-button" id="delete-current-site" type="button">現場を削除</button></div>
         <button class="small-button neutral-button full-button" id="close-site-modal" type="button">閉じる</button>
       </section>
     </div>
 
     <nav class="bottom-keypad" aria-label="専用キーボード">
       <div class="keypad-grid" id="keypad">
-        <button type="button" data-key="7">7</button>
-        <button type="button" data-key="8">8</button>
-        <button type="button" data-key="9">9</button>
-        <button type="button" data-action="back">削除</button>
-        <button type="button" data-key="4">4</button>
-        <button type="button" data-key="5">5</button>
-        <button type="button" data-key="6">6</button>
-        <button type="button" data-action="prev">前</button>
-        <button type="button" data-key="1">1</button>
-        <button type="button" data-key="2">2</button>
-        <button type="button" data-key="3">3</button>
-        <button type="button" data-action="next" class="next-key">次へ</button>
-        <button type="button" data-key="0" class="wide-key">0</button>
-        <button type="button" data-key=".">.</button>
-        <button type="button" data-action="done" class="done-key">完了</button>
+        <button type="button" data-key="7">7</button><button type="button" data-key="8">8</button><button type="button" data-key="9">9</button><button type="button" data-action="back">削除</button>
+        <button type="button" data-key="4">4</button><button type="button" data-key="5">5</button><button type="button" data-key="6">6</button><button type="button" data-action="prev">前</button>
+        <button type="button" data-key="1">1</button><button type="button" data-key="2">2</button><button type="button" data-key="3">3</button><button type="button" data-action="next" class="next-key">次へ</button>
+        <button type="button" data-key="0" class="wide-key">0</button><button type="button" data-key=".">.</button><button type="button" data-action="done" class="done-key">完了</button>
       </div>
     </nav>
 
-    <script>
-      const isLocalHttpDebug = location.protocol === "http:";
-      const localDebugBuffer = [];
-
-      function showLocalDebug(message) {
-        if (!isLocalHttpDebug) return;
-        localDebugBuffer.push(String(message));
-        let panel = document.querySelector("#local-debug");
-        if (!panel) {
-          panel = document.createElement("pre");
-          panel.id = "local-debug";
-          panel.style.position = "fixed";
-          panel.style.inset = "12px";
-          panel.style.zIndex = "9999";
-          panel.style.margin = "0";
-          panel.style.padding = "12px";
-          panel.style.overflow = "auto";
-          panel.style.whiteSpace = "pre-wrap";
-          panel.style.background = "rgba(24, 28, 27, 0.94)";
-          panel.style.color = "#fff";
-          panel.style.borderRadius = "8px";
-          panel.style.font = "12px/1.45 monospace";
-          document.addEventListener("DOMContentLoaded", () => {
-            document.body.append(panel);
-            panel.textContent = localDebugBuffer.join("\n\n");
-          }, { once: true });
-        }
-        if (document.body && !panel.isConnected) document.body.append(panel);
-        panel.textContent = localDebugBuffer.join("\n\n");
-      }
-
-      window.addEventListener("error", (event) => {
-        const detail = [
-          "JavaScript error",
-          event.message || "unknown",
-          event.filename ? `${event.filename}:${event.lineno || 0}:${event.colno || 0}` : ""
-        ].filter(Boolean).join("\n");
-        showLocalDebug(detail);
-      });
-
-      window.addEventListener("unhandledrejection", (event) => {
-        const reason = event.reason && event.reason.stack
-          ? event.reason.stack
-          : event.reason && event.reason.message
-            ? event.reason.message
-            : String(event.reason || "unknown rejection");
-        showLocalDebug(`Unhandled promise rejection\n${reason}`);
-      });
-
-      showLocalDebug("local page boot");
-    </script>
     <script src="app.js"></script>
-    <script>
-      (() => {
-        if (window.__mapCrosshairPatchApplied) return;
-        window.__mapCrosshairPatchApplied = true;
-
-        const patchState = {
-          position: { x: 0.5, y: 0.42 },
-          dragPointerId: null
-        };
-
-        function updateCrosshairPosition() {
-          if (!elements?.mapCrosshair) return;
-          const rect = elements?.mapStageWrap?.getBoundingClientRect?.();
-          if (!rect || !rect.width || !rect.height) return;
-          elements.mapCrosshair.style.left = `${rect.left + rect.width * patchState.position.x}px`;
-          elements.mapCrosshair.style.top = `${rect.top + rect.height * patchState.position.y}px`;
-        }
-
-        function setCrosshairFromClientPoint(clientX, clientY) {
-          const rect = elements?.mapStageWrap?.getBoundingClientRect?.();
-          if (!rect || !rect.width || !rect.height) return;
-          const padding = 0.05;
-          patchState.position = {
-            x: Math.max(padding, Math.min(1 - padding, (clientX - rect.left) / rect.width)),
-            y: Math.max(padding, Math.min(1 - padding, (clientY - rect.top) / rect.height))
-          };
-          updateCrosshairPosition();
-        }
-
-        function crosshairClientPoint() {
-          const rect = elements?.mapCrosshair?.getBoundingClientRect?.();
-          if (!rect || !rect.width || !rect.height) {
-            return typeof mapViewportClientPoint === "function"
-              ? mapViewportClientPoint()
-              : { clientX: 0, clientY: 0 };
-          }
-          return {
-            clientX: rect.left + rect.width / 2,
-            clientY: rect.top + rect.height / 2
-          };
-        }
-
-        function bindCrosshairDrag() {
-          const crosshair = elements?.mapCrosshair;
-          const handle = document.querySelector("#map-crosshair-handle");
-          if (!crosshair || !handle || crosshair.dataset.patchBound === "1") return;
-          crosshair.dataset.patchBound = "1";
-
-          handle.addEventListener("pointerdown", (event) => {
-            if (mapToolMode !== "edit") return;
-            if (patchState.dragPointerId !== null) return;
-            if (event.pointerType === "touch" && event.isPrimary === false) return;
-            event.preventDefault();
-            event.stopPropagation();
-            patchState.dragPointerId = event.pointerId;
-            handle.setPointerCapture?.(event.pointerId);
-            crosshair.classList.add("dragging");
-            setCrosshairFromClientPoint(event.clientX, event.clientY);
-          });
-
-          handle.addEventListener("pointermove", (event) => {
-            if (patchState.dragPointerId !== event.pointerId) return;
-            event.preventDefault();
-            setCrosshairFromClientPoint(event.clientX, event.clientY);
-          });
-
-          const endDrag = (event) => {
-            if (patchState.dragPointerId !== event.pointerId) return;
-            event.preventDefault();
-            handle.releasePointerCapture?.(event.pointerId);
-            patchState.dragPointerId = null;
-            crosshair.classList.remove("dragging");
-          };
-
-          handle.addEventListener("pointerup", endDrag);
-          handle.addEventListener("pointercancel", endDrag);
-        }
-
-        const originalRenderMapModeControls = window.renderMapModeControls;
-        window.renderMapModeControls = function patchedRenderMapModeControls(...args) {
-          const result = typeof originalRenderMapModeControls === "function"
-            ? originalRenderMapModeControls.apply(this, args)
-            : undefined;
-          bindCrosshairDrag();
-          if (elements?.mapCrosshair) {
-            elements.mapCrosshair.hidden = mapToolMode !== "edit";
-          }
-          if (elements?.mapPlacePoint) {
-            elements.mapPlacePoint.textContent = currentMapTarget?.()?.mapPoint ? "十字へ移動" : "十字に配置";
-          }
-          updateCrosshairPosition();
-          return result;
-        };
-
-        const originalResetMapTouchState = window.resetMapTouchState;
-        window.resetMapTouchState = function patchedResetMapTouchState(...args) {
-          const result = typeof originalResetMapTouchState === "function"
-            ? originalResetMapTouchState.apply(this, args)
-            : undefined;
-          patchState.dragPointerId = null;
-          elements?.mapCrosshair?.classList.remove("dragging");
-          return result;
-        };
-
-        const originalMapHelperStatus = window.mapHelperStatus;
-        window.mapHelperStatus = function patchedMapHelperStatus(...args) {
-          if (activeSite?.map && mapToolMode === "edit") {
-            return "編集ON: 右下の点で十字移動 / 1本指で図面移動 / 2本指で拡大縮小";
-          }
-          return typeof originalMapHelperStatus === "function"
-            ? originalMapHelperStatus.apply(this, args)
-            : "";
-        };
-
-        window.mapCrosshairClientPoint = crosshairClientPoint;
-        window.updateMapCrosshairPosition = updateCrosshairPosition;
-        window.addEventListener("resize", updateCrosshairPosition);
-        elements?.mapStageWrap?.addEventListener("scroll", updateCrosshairPosition, { passive: true });
-        window.placeCurrentMapPointAtCrosshair = function patchedPlaceCurrentMapPointAtCrosshair() {
-          if (!activeSite?.map) {
-            window.alert("先に図面を選択してください。");
-            return;
-          }
-          const target = currentMapTarget?.();
-          if (!target) {
-            window.alert("配置する状況写真がありません。先に状況写真を撮影してください。");
-            return;
-          }
-          const point = normalizeMapPoint(mapCanvasPoint(crosshairClientPoint()));
-          target.mapPoint = point;
-          saveCurrentMapTarget();
-          renderMap();
-        };
-
-        bindCrosshairDrag();
-        updateCrosshairPosition();
-      })();
-    </script>
+    <script src="patch-v41.js"></script>
     <script>
       const pdfCdnBase = "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build";
-
-      window.loadScript = function loadScript(src, quiet = false) {
-        return new Promise((resolve, reject) => {
-          const script = document.createElement("script");
-          script.src = src;
-          script.onload = resolve;
-          script.onerror = () => {
-            if (!quiet) {
-              window.alert("PDFライブラリを読み込めませんでした。通信状況を確認して、もう一度試してください。");
-            }
-            reject(new Error(`Failed to load ${src}`));
-          };
-          document.head.append(script);
-        });
-      };
-
-      window.ensurePdfJs = async function ensurePdfJs() {
-        const localWorker = "pdf.worker.min.js";
-        const localScript = "pdf.min.js";
-        const cdnWorker = `${pdfCdnBase}/pdf.worker.min.js`;
-
-        if (window.pdfjsLib) {
-          window.pdfjsLib.GlobalWorkerOptions.workerSrc = window.pdfjsLib.GlobalWorkerOptions.workerSrc || localWorker;
-          return;
-        }
-
-        try {
-          await window.loadScript(localScript, true);
-          if (!window.pdfjsLib) throw new Error("local pdfjs missing");
-          window.pdfjsLib.GlobalWorkerOptions.workerSrc = localWorker;
-        } catch {
-          await window.loadScript(`${pdfCdnBase}/pdf.min.js`);
-          window.pdfjsLib.GlobalWorkerOptions.workerSrc = cdnWorker;
-        }
-      };
-    </script>
-    <script>
-      const swHost = location.hostname;
-      const canUseServiceWorker =
-        location.protocol === "https:" ||
-        swHost === "localhost" ||
-        swHost === "127.0.0.1" ||
-        swHost === "::1";
-
-      if ("serviceWorker" in navigator && canUseServiceWorker) {
-        navigator.serviceWorker.register("./sw.js").catch((error) => {
-          console.warn("service worker registration skipped", error);
-        });
-      }
+      window.loadScript = function loadScript(src, quiet = false) { return new Promise((resolve, reject) => { const script = document.createElement("script"); script.src = src; script.onload = resolve; script.onerror = () => { if (!quiet) window.alert("PDFライブラリを読み込めませんでした。通信状況を確認して、もう一度試してください。"); reject(new Error(`Failed to load ${src}`)); }; document.head.append(script); }); };
+      window.ensurePdfJs = async function ensurePdfJs() { const localWorker = "pdf.worker.min.js"; const localScript = "pdf.min.js"; const cdnWorker = `${pdfCdnBase}/pdf.worker.min.js`; if (window.pdfjsLib) { window.pdfjsLib.GlobalWorkerOptions.workerSrc = window.pdfjsLib.GlobalWorkerOptions.workerSrc || localWorker; return; } try { await window.loadScript(localScript, true); if (!window.pdfjsLib) throw new Error("local pdfjs missing"); window.pdfjsLib.GlobalWorkerOptions.workerSrc = localWorker; } catch { await window.loadScript(`${pdfCdnBase}/pdf.min.js`); window.pdfjsLib.GlobalWorkerOptions.workerSrc = cdnWorker; } };
+      const swHost = location.hostname; const canUseServiceWorker = location.protocol === "https:" || swHost === "localhost" || swHost === "127.0.0.1" || swHost === "::1";
+      if ("serviceWorker" in navigator && canUseServiceWorker) navigator.serviceWorker.register("./sw.js").catch((error) => console.warn("service worker registration skipped", error));
     </script>
   </body>
 </html>
