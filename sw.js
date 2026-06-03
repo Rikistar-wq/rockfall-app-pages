@@ -1,4 +1,4 @@
-const cacheName = "rockfall-log-v37";
+const cacheName = "rockfall-log-v38";
 const assets = [
   "./",
   "./index.html",
@@ -10,8 +10,8 @@ const assets = [
 
 const appPatch = `
 ;(() => {
-  if (window.__photoManagementPatchApplied) return;
-  window.__photoManagementPatchApplied = true;
+  if (window.__photoManagementPatchAppliedV38) return;
+  window.__photoManagementPatchAppliedV38 = true;
 
   const requiredRockPhotoKindsPatch = ["full", "shape", "depth"];
   const photoStandardProfilePatch = {
@@ -20,6 +20,12 @@ const appPatch = `
     jpegQuality: 0.82,
     targetNote: "JPEG / 長辺1600px / 100〜300万画素目安"
   };
+  const photoSaveProfilesPatch = [
+    photoStandardProfilePatch,
+    { name: "JPEG 1280px", maxLongSide: 1280, jpegQuality: 0.78 },
+    { name: "JPEG 1024px", maxLongSide: 1024, jpegQuality: 0.72 },
+    { name: "JPEG 800px", maxLongSide: 800, jpegQuality: 0.66 }
+  ];
 
   function ensurePhotoUiPatch() {
     if (!elements?.photoPanel) return;
@@ -87,9 +93,9 @@ const appPatch = `
     return root + "/落石/No." + record.no + "/" + photoOutputNamePatch(photo);
   }
 
-  function createStandardPhotoPatch(image) {
+  function createStandardPhotoPatch(image, profile = photoStandardProfilePatch) {
     const maxSide = Math.max(image.naturalWidth, image.naturalHeight);
-    const scale = Math.min(1, photoStandardProfilePatch.maxLongSide / maxSide);
+    const scale = Math.min(1, profile.maxLongSide / maxSide);
     const width = Math.round(image.naturalWidth * scale);
     const height = Math.round(image.naturalHeight * scale);
     const canvas = document.createElement("canvas");
@@ -98,10 +104,17 @@ const appPatch = `
     const ctx = canvas.getContext("2d");
     ctx.drawImage(image, 0, 0, width, height);
     return {
-      dataUrl: canvas.toDataURL("image/jpeg", photoStandardProfilePatch.jpegQuality),
+      dataUrl: canvas.toDataURL("image/jpeg", profile.jpegQuality),
       width,
       height
     };
+  }
+
+  function savePhotoTargetPatch(isSituation) {
+    if (!activeSite) return false;
+    if (isSituation) activeSite.situationPhotos = situationPhotos;
+    else activeSite.records = records;
+    return saveSiteData(activeSite);
   }
 
   renderPhoto = function patchedRenderPhoto() {
@@ -141,31 +154,75 @@ const appPatch = `
 
   handlePhoto = async function patchedHandlePhoto(file) {
     if (!file) return;
-    const sourceUrl = await readFileAsDataUrl(file);
-    const image = await loadImage(sourceUrl);
-    const standardPhoto = createStandardPhotoPatch(image);
-    const takenAt = new Date().toISOString();
-    const photo = {
-      kind: pendingPhoto?.kind || "full",
-      name: photoFileName(pendingPhoto, takenAt),
-      dataUrl: standardPhoto.dataUrl,
-      takenAt,
-      originalSize: file.size,
-      compressedSize: estimateDataUrlBytes(standardPhoto.dataUrl),
-      width: standardPhoto.width,
-      height: standardPhoto.height,
-      format: "image/jpeg",
-      standardProfile: photoStandardProfilePatch.name
-    };
-    if (pendingPhoto?.kind === "situation") {
-      situationPhotos.push({ ...photo, folder: pendingPhoto.folder });
-      saveSituationPhotos();
-    } else {
-      currentRecord().photos.push(photo);
-      saveRecords();
+    const photoRequest = pendingPhoto || { kind: "full" };
+    try {
+      const sourceUrl = await readFileAsDataUrl(file);
+      const image = await loadImage(sourceUrl);
+      const takenAt = new Date().toISOString();
+      const isSituation = photoRequest.kind === "situation";
+      let savedProfile = "";
+      for (const profile of photoSaveProfilesPatch) {
+        const standardPhoto = createStandardPhotoPatch(image, profile);
+        const photo = {
+          kind: photoRequest.kind || "full",
+          name: photoFileName(photoRequest, takenAt),
+          dataUrl: standardPhoto.dataUrl,
+          takenAt,
+          originalSize: file.size,
+          compressedSize: estimateDataUrlBytes(standardPhoto.dataUrl),
+          width: standardPhoto.width,
+          height: standardPhoto.height,
+          format: "image/jpeg",
+          standardProfile: profile.name
+        };
+        if (isSituation) situationPhotos.push({ ...photo, folder: photoRequest.folder });
+        else currentRecord().photos.push(photo);
+        if (savePhotoTargetPatch(isSituation)) {
+          savedProfile = profile.name;
+          break;
+        }
+        if (isSituation) situationPhotos.pop();
+        else currentRecord().photos.pop();
+      }
+      if (!savedProfile) {
+        window.alert("写真を保存できませんでした。端末内の保存容量が不足しています。先に写真ZIPまたはバックアップを出して、不要な写真や現場を削除してください。");
+      } else if (savedProfile !== photoStandardProfilePatch.name) {
+        window.alert("保存容量を確保するため、この写真は " + savedProfile + " に自動縮小して保存しました。");
+      }
+    } catch {
+      window.alert("写真を読み込めませんでした。もう一度撮影してください。");
+    } finally {
+      pendingPhoto = null;
+      render();
     }
-    pendingPhoto = null;
-    render();
+  };
+
+  makeZip = function patchedMakeZip(entries) {
+    const files = [];
+    const central = [];
+    let offset = 0;
+    for (const entry of entries) {
+      const name = utf8Bytes(entry.path);
+      const crc = crc32(entry.bytes);
+      const local = concatBytes(
+        u32(0x04034b50), u16(20), u16(0x0800), u16(0), u16(0), u16(0),
+        u32(crc), u32(entry.bytes.length), u32(entry.bytes.length),
+        u16(name.length), u16(0), name, entry.bytes
+      );
+      files.push(local);
+      central.push(concatBytes(
+        u32(0x02014b50), u16(20), u16(20), u16(0x0800), u16(0), u16(0), u16(0),
+        u32(crc), u32(entry.bytes.length), u32(entry.bytes.length),
+        u16(name.length), u16(0), u16(0), u16(0), u16(0), u32(0), u32(offset), name
+      ));
+      offset += local.length;
+    }
+    const centralBytes = concatBytes(...central);
+    const end = concatBytes(
+      u32(0x06054b50), u16(0), u16(0), u16(entries.length), u16(entries.length),
+      u32(centralBytes.length), u32(offset), u16(0)
+    );
+    return new Blob([concatBytes(...files, centralBytes, end)], { type: "application/zip" });
   };
 
   exportPhotoZip = function patchedExportPhotoZip() {
@@ -182,16 +239,21 @@ const appPatch = `
       window.alert("出力する写真がありません。");
       return;
     }
-    const blob = makeZip(entries);
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = fileSafeName(activeSite?.name || "未設定現場") + "_落石写真.zip";
-    link.click();
-    URL.revokeObjectURL(url);
+    try {
+      const blob = makeZip(entries);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileSafeName(activeSite?.name || "未設定現場") + "_落石写真.zip";
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      window.alert("写真ZIPを作成できませんでした。写真枚数が多い場合は、現場を分けるか不要な写真を削除してから再度出力してください。");
+    }
   };
 
-  if (elements?.exportPhotos) {
+  if (elements?.exportPhotos && elements.exportPhotos.dataset.patchV38 !== "1") {
+    elements.exportPhotos.dataset.patchV38 = "1";
     elements.exportPhotos.addEventListener("click", (event) => {
       event.stopImmediatePropagation();
       exportPhotoZip();
