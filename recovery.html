@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>落石記帳 救出</title>
+<style>
+body{margin:0;background:#eef4f1;color:#18312c;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}main{max-width:760px;margin:auto;padding:22px 14px}h1{margin:0 0 8px;font-size:28px}.panel{margin-top:14px;padding:14px;border:1px solid #d8e0dc;border-radius:10px;background:#fff}p{margin:0;color:#65746f;font-weight:700;line-height:1.6}.warn{border-color:#efc9b8;background:#fff6f1}.warn strong{color:#9b3414}.actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:12px}button,a.button{display:flex;align-items:center;justify-content:center;min-height:48px;padding:10px 12px;border:1px solid #d8e0dc;border-radius:8px;background:#f8fbfa;color:#18312c;font:inherit;font-weight:900;text-decoration:none}.primary{border-color:#0f7b63;background:#0f7b63;color:#fff}.site{display:grid;gap:10px;margin-top:10px;padding-top:10px;border-top:1px solid #d8e0dc}.site:first-child{border-top:0;padding-top:0}.site h2{margin:0;font-size:18px}.meta{display:flex;flex-wrap:wrap;gap:6px}.pill{padding:4px 8px;border-radius:999px;background:#e7efec;color:#65746f;font-size:12px;font-weight:900}pre{overflow:auto;max-height:160px;margin:10px 0 0;padding:10px;border-radius:8px;background:#10231f;color:#e9f3ef;font-size:12px}@media(max-width:540px){.actions{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main>
+<h1>落石記帳 救出</h1>
+<p>同じブラウザ・同じURL内に残っている保存データを直接読み出します。</p>
+<section class="panel warn"><p><strong>限界:</strong> iPhone側でサイトデータや履歴が削除された場合は、このページでも取り出せません。データが残っている場合の救出口です。</p></section>
+<section class="panel"><p id="summary">保存データを確認中...</p><div class="actions"><button class="primary" id="export-all" type="button">全データJSON</button><button id="export-raw" type="button">生データJSON</button><a class="button" href="./index.html">アプリへ戻る</a></div></section>
+<section class="panel" id="site-list"></section>
+<section class="panel"><p>検出した保存キー</p><pre id="raw-keys"></pre></section>
+</main>
+<script>
+const sitesIndexKey="rockfall-sites-index-v1";
+const activeSiteKey="rockfall-active-site-v1";
+const els={summary:document.querySelector("#summary"),exportAll:document.querySelector("#export-all"),exportRaw:document.querySelector("#export-raw"),siteList:document.querySelector("#site-list"),rawKeys:document.querySelector("#raw-keys")};
+function siteDataKey(id){return `rockfall-site-data-v1:${id}`}
+function readJson(key,fallback=null){try{return JSON.parse(localStorage.getItem(key)||"null")??fallback}catch{return fallback}}
+function rawRockfallStorage(){const out={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith("rockfall-"))out[k]=localStorage.getItem(k)}return out}
+function loadSites(){const idx=readJson(sitesIndexKey,[]);return (Array.isArray(idx)?idx:[]).map(site=>({...site,data:readJson(siteDataKey(site.id),{records:[],situationPhotos:[],map:null})}))}
+function countPhotos(site){const records=Array.isArray(site.data?.records)?site.data.records:[];const rock=records.reduce((s,r)=>s+(Array.isArray(r.photos)?r.photos.length:0),0);const situation=Array.isArray(site.data?.situationPhotos)?site.data.situationPhotos.length:0;return{rock,situation,total:rock+situation}}
+function esc(v){return String(v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c])}
+function safe(v){return String(v||"未設定").replace(/[\\/:*?"<>|]/g,"_").trim()||"未設定"}
+function downloadBlob(blob,name){const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=name;a.click();URL.revokeObjectURL(url)}
+function downloadJson(data,name){downloadBlob(new Blob([JSON.stringify(data,null,2)],{type:"application/json;charset=utf-8"}),name)}
+function sitePayload(site){return{app:"rockfall-field-log-recovery",recoveredAt:new Date().toISOString(),site:{id:site.id,name:site.name,createdAt:site.createdAt,updatedAt:site.updatedAt,records:site.data?.records||[],situationPhotos:site.data?.situationPhotos||[],map:site.data?.map||null}}}
+function allPayload(){return{app:"rockfall-field-log-recovery",recoveredAt:new Date().toISOString(),activeSiteId:localStorage.getItem(activeSiteKey)||"",sites:loadSites().map(s=>sitePayload(s).site),raw:rawRockfallStorage()}}
+function kindLabel(k){if(k==="shape")return"縦横";if(k==="depth")return"奥行";if(k==="situation")return"状況";return"全景"}
+function dataUrlToBytes(dataUrl){const b64=String(dataUrl||"").split(",")[1]||"";const bin=atob(b64);const bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);return bytes}
+function sitePhotoEntries(site){const root=safe(site.name);const entries=[];for(const record of site.data?.records||[]){for(const photo of record.photos||[]){if(!photo.dataUrl)continue;entries.push({path:`${root}/落石/No.${record.no}/${kindLabel(photo.kind)}_${photo.name||"photo.jpg"}`,bytes:dataUrlToBytes(photo.dataUrl)})}}(site.data?.situationPhotos||[]).forEach((photo,index)=>{if(!photo.dataUrl)return;const folder=safe(photo.folder||`状況写真${index+1}`);entries.push({path:`${root}/状況写真/${folder}/${photo.name||`${String(index+1).padStart(2,"0")}.jpg`}`,bytes:dataUrlToBytes(photo.dataUrl)})});return entries}
+function utf8Bytes(t){return new TextEncoder().encode(t)}
+function u16(v){return new Uint8Array([v&255,(v>>>8)&255])}
+function u32(v){return new Uint8Array([v&255,(v>>>8)&255,(v>>>16)&255,(v>>>24)&255])}
+function concatBytes(...parts){const len=parts.reduce((s,p)=>s+p.length,0);const out=new Uint8Array(len);let off=0;for(const p of parts){out.set(p,off);off+=p.length}return out}
+const crcTable=Array.from({length:256},(_,i)=>{let v=i;for(let b=0;b<8;b++)v=v&1?0xedb88320^(v>>>1):v>>>1;return v>>>0});
+function crc32(bytes){let crc=-1;for(const byte of bytes)crc=(crc>>>8)^crcTable[(crc^byte)&255];return(crc^-1)>>>0}
+function makeZip(entries){const files=[];const central=[];let offset=0;for(const e of entries){const name=utf8Bytes(e.path);const crc=crc32(e.bytes);const local=concatBytes(u32(0x04034b50),u16(20),u16(0x0800),u16(0),u16(0),u16(0),u32(crc),u32(e.bytes.length),u32(e.bytes.length),u16(name.length),u16(0),name,e.bytes);files.push(local);central.push(concatBytes(u32(0x02014b50),u16(20),u16(20),u16(0x0800),u16(0),u16(0),u16(0),u32(crc),u32(e.bytes.length),u32(e.bytes.length),u16(name.length),u16(0),u16(0),u16(0),u16(0),u32(0),u32(offset),name));offset+=local.length}const c=concatBytes(...central);const end=concatBytes(u32(0x06054b50),u16(0),u16(0),u16(entries.length),u16(entries.length),u32(c.length),u32(offset),u16(0));return new Blob([concatBytes(...files,c,end)],{type:"application/zip"})}
+function render(){const sites=loadSites();const raw=rawRockfallStorage();const photoTotal=sites.reduce((s,site)=>s+countPhotos(site).total,0);els.summary.textContent=`検出: 現場 ${sites.length}件 / 写真 ${photoTotal}枚 / 保存キー ${Object.keys(raw).length}件`;els.rawKeys.textContent=Object.keys(raw).sort().join("\n")||"rockfall保存キーは見つかりません。";els.siteList.innerHTML=sites.length?sites.map((site,i)=>{const p=countPhotos(site);const records=Array.isArray(site.data?.records)?site.data.records.length:0;return `<article class="site"><h2>${esc(site.name||`現場${i+1}`)}</h2><div class="meta"><span class="pill">記録 ${records}件</span><span class="pill">落石写真 ${p.rock}枚</span><span class="pill">状況写真 ${p.situation}枚</span></div><div class="actions"><button type="button" data-json="${i}">この現場JSON</button><button type="button" data-zip="${i}">この現場写真ZIP</button></div></article>`}).join(""):"<p>現場データが見つかりません。</p>"}
+els.exportAll.addEventListener("click",()=>downloadJson(allPayload(),`落石記帳_全データ救出_${new Date().toISOString().slice(0,10)}.json`));
+els.exportRaw.addEventListener("click",()=>downloadJson(rawRockfallStorage(),`落石記帳_localStorage生データ_${new Date().toISOString().slice(0,10)}.json`));
+els.siteList.addEventListener("click",event=>{const json=event.target.closest("[data-json]");const zip=event.target.closest("[data-zip]");const sites=loadSites();if(json){const site=sites[Number(json.dataset.json)];if(site)downloadJson(sitePayload(site),`${safe(site.name)}_救出バックアップ.json`)}if(zip){const site=sites[Number(zip.dataset.zip)];if(!site)return;const entries=sitePhotoEntries(site);if(!entries.length){alert("この現場に写真データが見つかりません。");return}try{downloadBlob(makeZip(entries),`${safe(site.name)}_救出写真.zip`)}catch{alert("写真ZIPの作成に失敗しました。まず全データJSONを出力してください。")}}});
+render();
+</script>
+</body>
+</html>
